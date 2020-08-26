@@ -2,7 +2,6 @@ import discord
 from discord.ext import commands
 from discord import utils
 import data
-import asyncio
 import json
 import requests
 client = commands.Bot(command_prefix = data.PREFIX)
