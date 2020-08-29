@@ -2,7 +2,6 @@ import discord
 from discord.ext import commands
 from discord import utils
 import data
-import asyncio
 import json
 import requests
 client = commands.Bot(command_prefix = data.PREFIX)
@@ -24,6 +23,8 @@ async def on_member_join(member):
     emb.add_field (name = 'привет :wave:', value = '{}'.format(member.mention))
     channel = client.get_channel(data.ENTER_EXIT_CHANNEL)
     await channel.send (embed = emb)
+    role = discord.utils.get(member.guild.roles, id=data.autoRoleId)
+    await member.add_roles(role)
 
 @client.event
 async def on_member_remove(member):
@@ -40,14 +41,12 @@ async def on_raw_reaction_add(payload):
         message = await channel.fetch_message(payload.message_id) # получаем объект сообщения
         member = utils.get(message.guild.members, id=payload.user_id) # получаем объект пользователя, который поставил реакцию
         try:
-            emoji = str(payload.emoji) # эмодзи который выбрал юзер
+            emoji = str(payload.emoji) # эмодзи, который выбрал юзер
             role = utils.get(message.guild.roles, id=data.ROLES[emoji]) # объект выбранной роли (если есть)
             if(len([i for i in member.roles if i.id not in data.EXCROLES]) <= data.MAX_ROLES_PER_USER):
                 await member.add_roles(role)
             else:
                 await message.remove_reaction(payload.emoji, member)
-        except KeyError as e:
-            print('[ERROR] KeyError, no role found for ' + emoji)
         except Exception as e:
             print(repr(e))
 
@@ -56,7 +55,6 @@ async def on_message(message):
     if message.channel == client.get_channel(data.SUGGESTIONS_CHANNEL):
         await message.add_reaction('✅')
         await message.add_reaction('⛔')
-    await client.process_commands(message)
     if message.channel == client.get_channel(data.GREETER_CHANNEL):
         await message.add_reaction('✅')
     await client.process_commands(message)
@@ -66,10 +64,10 @@ async def on_message(message):
 @client.command(pass_context = True)
 @commands.has_permissions(kick_members = True)
 
-async def clear(ctx, amount: int):
+async def очистить(ctx, amount: int):
     await ctx.channel.purge(limit = amount)
 
-@clear.error
+@очистить.error
 async def clear_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.channel.purge(limit = 1)
@@ -81,7 +79,7 @@ async def clear_error(ctx, error):
 @client.command(pass_context = True)
 @commands.has_permissions(kick_members = True)
 
-async def kick(ctx, member: discord.Member, *, reason = None):
+async def кик(ctx, member: discord.Member, *, reason = None):
     emb = discord.Embed (title = 'Kick :wave:', colour = discord.Color.red())
     await ctx.channel.purge(limit = 1)
     await member.kick(reason = reason)
@@ -91,7 +89,7 @@ async def kick(ctx, member: discord.Member, *, reason = None):
     channel = client.get_channel(data.LOG_CHANNEL)
     await channel.send (embed = emb)
 
-@kick.error
+@кик.error
 async def kick_error(ctx, error):
     if isinstance(error, commands.BadArgument):
         await ctx.channel.purge(limit = 1)
@@ -107,7 +105,7 @@ async def kick_error(ctx, error):
 @client.command(pass_context = True)
 @commands.has_permissions(kick_members = True)
 
-async def ban(ctx, member: discord.Member, *, reason = None):
+async def бан(ctx, member: discord.Member, *, reason = None):
     emb = discord.Embed (title = 'Ban :lock:', colour = discord.Color.dark_red())
     await ctx.channel.purge(limit = 1)
     await member.ban(reason = reason)
@@ -117,7 +115,7 @@ async def ban(ctx, member: discord.Member, *, reason = None):
     channel = client.get_channel(data.LOG_CHANNEL)
     await channel.send (embed = emb)
 
-@ban.error
+@бан.error
 async def ban_error(ctx, error):
     if isinstance(error, commands.BadArgument):
         await ctx.channel.purge(limit = 1)
@@ -133,7 +131,7 @@ async def ban_error(ctx, error):
 @client.command()
 @commands.has_permissions(kick_members = True)
 
-async def mute_user (ctx, member: discord.Member):
+async def мут(ctx, member: discord.Member):
     emb = discord.Embed (title = 'Mute :mute:', colour = discord.Color.gold())
     await ctx.channel.purge(limit = 1)
     mute_role = discord.utils.get(ctx.message.guild.roles, name = 'MUTED')
@@ -144,7 +142,7 @@ async def mute_user (ctx, member: discord.Member):
     channel = client.get_channel(data.LOG_CHANNEL)
     await channel.send (embed = emb)
 
-@mute_user.error
+@мут.error
 async def mute_error(ctx, error):
     if isinstance(error, commands.BadArgument):
         await ctx.channel.purge(limit = 1)
@@ -160,7 +158,7 @@ async def mute_error(ctx, error):
 @client.command()
 @commands.has_permissions(kick_members = True)
 
-async def unmute_user (ctx, member: discord.Member):
+async def размут(ctx, member: discord.Member):
     emb = discord.Embed (title = 'Unmute :speaker:', colour = discord.Color.green())
     await ctx.channel.purge(limit = 1)
     mute_role = discord.utils.get(ctx.message.guild.roles, name = 'MUTED')
@@ -171,7 +169,7 @@ async def unmute_user (ctx, member: discord.Member):
     channel = client.get_channel(data.LOG_CHANNEL)
     await channel.send (embed = emb)
 
-@unmute_user.error
+@размут.error
 async def unmute_error(ctx, error):
     if isinstance(error, commands.BadArgument):
         await ctx.channel.purge(limit = 1)
@@ -182,15 +180,16 @@ async def unmute_error(ctx, error):
         message = await ctx.send('Ошибка! Недостаточно прав...')
         await message.delete(delay = 3)
 
-#bot_say
+#bot_say_in
 
 @client.command()
 @commands.has_permissions(kick_members = True)
 
-async def say_in(ctx, kanal, *, arg):
+async def транс(ctx, kanal, *, arg):
     await client.get_channel(int(kanal)).send (arg)
+    await ctx.channel.purge(limit = 1)
 
-@say_in.error
+@транс.error
 async def sayin_error(ctx, error):
     if isinstance(error, commands.BadArgument):
         await ctx.channel.purge(limit = 1)
@@ -204,38 +203,66 @@ async def sayin_error(ctx, error):
 # help
 
 @client.command(pass_context = True)
+
+async def помощь(ctx):
+    emb = discord.Embed (title = 'Навигация по командам:')
+    emb.add_field(name ='{}помощь_развлечения'.format(data.PREFIX), value = 'Раздел "Развлечения"', inline=False)
+    emb.add_field(name ='{}помощь_модерация'.format(data.PREFIX), value = 'Раздел "Модерация"', inline=False)
+    await ctx.send ( embed = emb )
+
+# help_mod
+
+@client.command(pass_context = True)
 @commands.has_permissions(kick_members = True)
 
-async def help(ctx):
-    emb = discord.Embed (title = 'Навигация по командам :clipboard: ')
-    emb.add_field(name ='{}clear :broom: '.format(data.PREFIX), value = 'Очистка чата\n')
-    emb.add_field(name ='{}ban :lock:'.format(data.PREFIX), value = 'Бан участника\n')
-    emb.add_field(name ='{}kick :wave: '.format(data.PREFIX), value = 'Кик участника\n')
-    emb.add_field(name ='{}mute_user :mute: '.format(data.PREFIX), value = 'Мут участника\n')
-    emb.add_field(name ='{}unmute_user :speaker: '.format(data.PREFIX), value = 'Размут участника')
+async def помощь_модерация(ctx):
+    emb = discord.Embed (title = 'Навигация по командам:')
+    emb.add_field(name ='{}очистить <кол-во сообщений>'.format(data.PREFIX), value = 'Очистка чата', inline=False)
+    emb.add_field(name ='{}бан <участник>'.format(data.PREFIX), value = 'Бан участника', inline=False)
+    emb.add_field(name ='{}кик <участник>'.format(data.PREFIX), value = 'Кик участника', inline=False)
+    emb.add_field(name ='{}мут <участник>'.format(data.PREFIX), value = 'Мут участника', inline=False)
+    emb.add_field(name ='{}размут <участник>'.format(data.PREFIX), value = 'Размут участника', inline=False)
+    emb.add_field(name ='{}транс <id канала> <сообщение>'.format(data.PREFIX), value = 'Сообщение от имени бота', inline=False)
+    await ctx.send ( embed = emb )
+
+# help_fun
+
+@client.command(pass_context = True)
+
+async def помощь_развлечения(ctx):
+    emb = discord.Embed (title = 'Навигация по командам:')
+    emb.add_field(name ='{}лис'.format(data.PREFIX), value = 'Пикча с лисой', inline=False)
+    emb.add_field(name ='{}кот'.format(data.PREFIX), value = 'Пикча с котом', inline=False)
+    emb.add_field(name ='{}пес'.format(data.PREFIX), value = 'Пикча с псом', inline=False)
+    emb.add_field(name ='{}скажи <сообщение>'.format(data.PREFIX), value = 'Сообщение от имени бота', inline=False)
     await ctx.send ( embed = emb )
 
 @client.command()
-async def fox(ctx):
+
+async def скажи(ctx, *, arg):
+    await ctx.send (arg)
+
+@client.command()
+async def лис(ctx):
     response = requests.get('https://some-random-api.ml/img/fox') # Get-запрос
     json_data = json.loads(response.text) # Извлекаем JSON
-    embed = discord.Embed(color = 0xff9900, title = 'Random Fox') # Создание Embed'a
+    embed = discord.Embed(color = 0xff9900, title = 'Лиса') # Создание Embed'a
     embed.set_image(url = json_data['link']) # Устанавливаем картинку Embed'a
     await ctx.send(embed = embed) # Отправляем Embed
 
 @client.command()
-async def cat(ctx):
+async def кот(ctx):
     response = requests.get('https://some-random-api.ml/img/cat')
     json_data = json.loads(response.text)
-    embed = discord.Embed(color = 0xff9900, title = 'Random Cat')
+    embed = discord.Embed(color = 0xff9900, title = 'Кот')
     embed.set_image(url = json_data['link'])
     await ctx.send(embed = embed)
 
 @client.command()
-async def dog(ctx):
+async def пес(ctx):
     response = requests.get('https://some-random-api.ml/img/dog')
     json_data = json.loads(response.text)
-    embed = discord.Embed(color = 0xff9900, title = 'Random Dog')
+    embed = discord.Embed(color = 0xff9900, title = 'Пес')
     embed.set_image(url = json_data['link'])
     await ctx.send(embed = embed)
 
